@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+<meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon.svg">
+<meta name="theme-color" content="#f9f9fb" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#161618" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="配筋指針">
+<title>配筋指針 計算機</title>
+<style>
+/* 配筋検査アプリと同じ iOS 風の見た目：上に条件、下にタブ、結果は白いカード */
+:root{
+  --bg:#f2f2f7; --surface:#ffffff; --sunk:#f7f7fa; --fill:rgba(118,118,128,.12); --ink:#1c1c1e; --muted:#6e6e73; --line:#e3e3e8;
+  --accent:#007aff; --accent-soft:#e8f1ff; --hd:rgba(249,249,251,.9);
+  --ok:#248a3d; --ng:#e0261b; --ng-soft:#ffecea; --warn:#b25000; --warn-soft:#fff3e0;
+  --shadow:0 1px 2px rgba(0,0,0,.05),0 2px 8px rgba(0,0,0,.04);
+  --f-body:-apple-system,BlinkMacSystemFont,"SF Pro Text","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;
+  --f-num:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#000; --surface:#1c1c1e; --sunk:#242426; --fill:rgba(118,118,128,.24); --ink:#f5f5f7; --muted:#98989f; --line:#38383a;
+  --accent:#0a84ff; --accent-soft:#0c2847; --hd:rgba(22,22,24,.9);
+  --ok:#30d158; --ng:#ff453a; --ng-soft:#3b1614; --warn:#ffb340; --warn-soft:#33240c; --shadow:none; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#000; --surface:#1c1c1e; --sunk:#242426; --fill:rgba(118,118,128,.24); --ink:#f5f5f7; --muted:#98989f; --line:#38383a;
+  --accent:#0a84ff; --accent-soft:#0c2847; --hd:rgba(22,22,24,.9);
+  --ok:#30d158; --ng:#ff453a; --ng-soft:#3b1614; --warn:#ffb340; --warn-soft:#33240c; --shadow:none; color-scheme:dark}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+[hidden]{display:none!important}
+
+#app{max-width:760px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+header.top{position:sticky;top:0;z-index:20;padding:calc(10px + env(safe-area-inset-top,0px)) 16px 10px;background:var(--hd);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line);display:grid;gap:8px}
+.ttl{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.ttl h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}
+.ttl small{color:var(--muted);font-size:11.5px}
+.conds{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.conds label{display:grid;gap:2px;font-size:11px;color:var(--muted);min-width:0}
+select{-webkit-appearance:none;appearance:none;width:100%;min-width:0;font-weight:600;font-size:17px;background:var(--fill) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%238e8e93' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 10px center/11px 7px;color:var(--ink);border:0;border-radius:10px;padding:9px 26px 9px 10px;box-sizing:border-box}
+input[type=number]{width:100%;box-sizing:border-box;font-weight:600;font-size:17px;background:var(--fill);border:0;border-radius:10px;padding:9px 10px}
+.toggle{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink)}
+.toggle input{width:20px;height:20px;accent-color:var(--accent)}
+
+main{flex:1;padding:12px 16px calc(96px + env(safe-area-inset-bottom,0px));display:grid;gap:12px;align-content:start}
+.sec-h{margin:6px 4px -4px;font-size:13px;font-weight:600;color:var(--muted)}
+.card{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);padding:14px 16px;display:grid;gap:6px}
+.card .k{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card .k span{font-size:14px;font-weight:600}
+.card .k a,.ref{font-size:11.5px;color:var(--muted);white-space:nowrap;text-decoration:none}
+.big{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.big b{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.big b small{font-size:16px;font-weight:600;margin-left:2px}
+.big em{font-style:normal;font-family:var(--f-num);font-size:16px;color:var(--muted);font-variant-numeric:tabular-nums}
+.na{font-size:15px;color:var(--muted)}
+.sub{font-size:13px;color:var(--muted)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pair>div{display:grid;gap:2px;min-width:0}
+.pair .lbl{font-size:12px;color:var(--muted)}
+.pair b{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:24px;font-weight:700}
+.pair b small{font-size:13px;font-weight:600;margin-left:2px}
+.note{font-size:12.5px;color:var(--muted);background:var(--sunk);border-radius:10px;padding:8px 10px;display:grid;gap:4px}
+.note p{margin:0}
+.warn{font-size:13px;color:var(--warn);background:var(--warn-soft);border-radius:10px;padding:8px 10px}
+.bad{font-size:13px;color:var(--ng);background:var(--ng-soft);border-radius:10px;padding:8px 10px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row2 label{display:grid;gap:2px;font-size:11px;color:var(--muted)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--fill);border-radius:9px;padding:2px;gap:2px}
+.seg button{border:0;background:none;border-radius:7px;padding:7px 0;font-size:14px;font-weight:600;color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+table.cov{width:100%;border-collapse:collapse;font-size:13px}
+table.cov th,table.cov td{padding:7px 4px;border-bottom:.5px solid var(--line);text-align:left;vertical-align:middle}
+table.cov td.v{text-align:right;font-family:var(--f-num);font-weight:700;font-size:18px;white-space:nowrap}
+table.cov tr.hl td{background:var(--accent-soft)}
+svg.fig{width:100%;height:auto;max-height:220px}
+svg.fig .bar{fill:none;stroke:var(--ink);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+svg.fig .dim{stroke:var(--accent);stroke-width:1;fill:none}
+svg.fig text{fill:var(--accent);font-size:11px;font-family:var(--f-body)}
+svg.fig .wall{fill:var(--fill);stroke:var(--muted);stroke-width:1}
+.load{background:var(--surface);border-radius:var(--r);padding:20px 16px;display:grid;gap:10px;box-shadow:var(--shadow)}
+.btn{border:0;border-radius:12px;padding:12px 16px;background:var(--accent);color:#fff;font-weight:600;font-size:16px}
+footer{font-size:11px;color:var(--muted);text-align:center;padding:4px 0 8px}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--hd);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--line);padding:4px 8px calc(4px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(5,1fr);max-width:760px;margin:0 auto}
+nav.tabs button{background:none;border:0;padding:7px 0 5px;display:grid;justify-items:center;gap:3px;font-size:10.5px;font-weight:500;color:#8e8e93;border-radius:8px}
+nav.tabs button svg{width:25px;height:25px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+nav.tabs button[aria-current="true"]{color:var(--accent);font-weight:600}
+</style>
+</head><body>
+<div id="app">
+  <header class="top">
+    <div class="ttl"><h1>配筋指針 計算機</h1><small id="src"></small></div>
+    <div class="conds" id="conds">
+      <label>Fc (N/mm²)<select id="fc"></select></label>
+      <label>鉄筋の種類<select id="grade"></select></label>
+      <label>呼び名<select id="bar"></select></label>
+    </div>
+    <label class="toggle" id="lightWrap"><input type="checkbox" id="light">軽量コンクリート</label>
+  </header>
+  <main id="main"></main>
+  <nav class="tabs" id="tabs">
+    <button data-tab="anchor" aria-current="true"><svg viewBox="0 0 24 24"><path d="M4 7h12a4 4 0 0 1 0 8h-2"/><path d="M20 4v16"/></svg>定着</button>
+    <button data-tab="lap"><svg viewBox="0 0 24 24"><path d="M2 9h14"/><path d="M8 15h14"/><path d="M8 12h8"/></svg>継手</button>
+    <button data-tab="bend"><svg viewBox="0 0 24 24"><path d="M4 18h9a5 5 0 0 0 0-10H9"/><path d="M9 5v6"/></svg>加工</button>
+    <button data-tab="cover"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><rect x="8" y="8" width="8" height="8" rx="1" stroke-dasharray="2 2"/></svg>かぶり</button>
+    <button data-tab="space"><svg viewBox="0 0 24 24"><circle cx="7" cy="12" r="3"/><circle cx="17" cy="12" r="3"/><path d="M10 12h4"/></svg>あき</button>
+  </nav>
+</div>
+<script src="app.js"></script>
+</body></html>

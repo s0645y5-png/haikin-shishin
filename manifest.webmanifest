@@ -1,0 +1,14 @@
+{
+  "name": "配筋指針 計算機",
+  "short_name": "配筋指針",
+  "description": "定着・継手長さ、折曲げ形状、かぶり厚さ、鉄筋のあきを配筋指針の表から求める。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f2f7",
+  "theme_color": "#f9f9fb",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
